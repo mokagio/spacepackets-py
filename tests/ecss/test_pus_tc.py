@@ -205,6 +205,17 @@ class TestTelecommand(TestCase):
         self.assertEqual(tc_header_pus_c_raw[1], 1)
         self.assertEqual(tc_header_pus_c_raw[2], 2)
 
+    def test_secondary_header_legacy_subservice_setter(self):
+        sec_header = PusTcDataFieldHeader(service=17, message_subtype=2)
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            sec_header.subservice = 3
+
+        self.assertEqual(sec_header.subservice, 3)
+        self.assertEqual(sec_header.message_subtype, 3)
+        self.assertGreaterEqual(len(caught), 1)
+
     def test_calc_crc(self):
         new_ping_tc = PusTc(apid=27, service=17, message_subtype=1)
         self.assertIsNone(new_ping_tc.crc16)

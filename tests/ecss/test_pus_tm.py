@@ -20,6 +20,7 @@ from spacepackets.ecss.pus_1_verification import (
     RequestId,
 )
 from spacepackets.ecss.tm import (
+    AbstractPusTm,
     CdsShortTimestamp,
     InvalidTmCrc16Error,
     ManagedParams,
@@ -172,6 +173,17 @@ class TestTelemetry(TestCase):
         self.assertEqual(raw_secondary_packet_header[1], 17)
         # Message subtype
         self.assertEqual(raw_secondary_packet_header[2], 2)
+
+    def test_secondary_header_legacy_subservice_setter(self):
+        sec_header = PusTmSecondaryHeader(service=17, message_subtype=2, timestamp=TEST_STAMP)
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            sec_header.subservice = 3
+
+        self.assertEqual(sec_header.subservice, 3)
+        self.assertEqual(sec_header.message_subtype, 3)
+        self.assertGreaterEqual(len(caught), 1)
 
     def test_full_printout(self):
         self.ping_reply.calc_crc()
@@ -398,3 +410,47 @@ class TestTelemetry(TestCase):
             )
             self.assertEqual(legacy_tm.subservice, 2)
         self.assertGreaterEqual(len(caught), 1)
+
+    def test_abstract_pus_tm_missing_alias_impl_recurses(self):
+        class MinimalTm(AbstractPusTm):
+            @property
+            def sp_header(self) -> SpacePacketHeader:
+                return SpacePacketHeader(
+                    apid=1,
+                    packet_type=PacketType.TM,
+                    seq_flags=SequenceFlags.UNSEGMENTED,
+                    data_len=0,
+                    seq_count=0,
+                    sec_header_flag=True,
+                )
+
+            @property
+            def ccsds_version(self) -> int:
+                return self.sp_header.ccsds_version
+
+            @property
+            def packet_id(self) -> PacketId:
+                return self.sp_header.packet_id
+
+            @property
+            def packet_seq_control(self) -> PacketSeqCtrl:
+                return self.sp_header.packet_seq_control
+
+            @property
+            def service(self) -> int:
+                return 17
+
+            @property
+            def timestamp(self) -> bytes:
+                return b""
+
+            @property
+            def source_data(self) -> bytes:
+                return b""
+
+            def pack(self) -> bytearray:
+                return bytearray()
+
+        tm = MinimalTm()
+        with self.assertRaises(RecursionError):
+            _ = tm.subservice

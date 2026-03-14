@@ -1,3 +1,4 @@
+import warnings
 from unittest import TestCase
 
 from spacepackets.ccsds import CdsShortTimestamp
@@ -46,3 +47,20 @@ class TestSrv17Tm(TestCase):
         srv_17_tm_raw = srv_17_tm.pack()
         srv_17_tm_unpacked = Service17Tm.unpack(data=srv_17_tm_raw, timestamp_len=len(TEST_STAMP))
         self.assertEqual(srv_17_tm_unpacked.pus_tm.message_subtype, 2)
+
+    def test_legacy_subservice_ctor_and_alias(self):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            srv17_tm = Service17Tm(apid=self.def_apid, subservice=2, timestamp=TEST_STAMP)
+            self.assertEqual(srv17_tm.subservice, 2)
+            self.assertEqual(srv17_tm.message_subtype, 2)
+        self.assertGreaterEqual(len(caught), 1)
+
+    def test_legacy_subservice_property_warns(self):
+        srv17_tm = Service17Tm(apid=self.def_apid, message_subtype=2, timestamp=TEST_STAMP)
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            self.assertEqual(srv17_tm.subservice, 2)
+
+        self.assertGreaterEqual(len(caught), 1)
